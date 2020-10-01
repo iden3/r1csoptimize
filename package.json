@@ -1,0 +1,27 @@
+{
+  "name": "r1csoptimize",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "r1cs file optimization",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "r1cs",
+    "snarks",
+    "circom",
+    "optimize"
+  ],
+  "author": "Jordi Baylina",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@iden3/bigarray": "0.0.2",
+    "logplease": "^1.2.15",
+    "r1csfile": "0.0.16",
+    "yargs": "^16.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^7.9.0"
+  }
+}
