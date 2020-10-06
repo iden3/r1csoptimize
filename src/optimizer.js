@@ -1,40 +1,17 @@
 import { getCurveFromR } from "ffjavascript";
 import BigArray from "@iden3/bigarray";
 import buildThreadManager from "./threadman.js";
-
-function MakeQuerablePromise(promise) {
-    // Don't modify any promise that has been already modified.
-    if (promise.isResolved) return promise;
-
-    // Set initial state
-    var isPending = true;
-    var isRejected = false;
-    var isFulfilled = false;
-
-    // Observe the promise, saving the fulfillment in a closure scope.
-    var result = promise.then(
-        function(v) {
-            isFulfilled = true;
-            isPending = false;
-            return v;
-        },
-        function(e) {
-            isRejected = true;
-            isPending = false;
-            throw e;
-        }
-    );
-
-    result.isFulfilled = function() { return isFulfilled; };
-    result.isPending = function() { return isPending; };
-    result.isRejected = function() { return isRejected; };
-    return result;
-}
-
+import thread from "./threadman_thread.js";
+import  * as ffjavascript from "ffjavascript";
 
 export default async function optimize(cir, logger) {
     const curve = await getCurveFromR(cir.prime, true);
     const tm = await buildThreadManager(curve, false);
+    const isolateGroupProcessor = thread(null, ffjavascript);
+    await isolateGroupProcessor([{
+        cmd: "INIT",
+        r: curve.r
+    }]);
 
     const Fr = curve.Fr;
 
@@ -101,30 +78,47 @@ export default async function optimize(cir, logger) {
     }
     console.log("maxGroupLength: ", maxGroupLength);
 
-    const issolated = new BigArray();
+    const LIMIT_TOTHREAD = 100;
+    const issolated = new BigArray(varList.length);
     const ops = [];
     for (let i=0; i<groups.length; i++) {
         if ((logger)&&(i%1000 == 0)) logger.info(`Issolating groups: ${i}/${groups.length}`);
+        const vars2 = [];
+        for (let j=0; j<groups[i].length; j++) {
+            if (groups[i].length>LIMIT_TOTHREAD) {
+                vars2[j] = cloneLC(vars[groups[i][j]].lc);
+            } else {
+                vars2[j] = vars[groups[i][j]].lc;
+            }
+        }
 
+        if (groups[i].length>LIMIT_TOTHREAD) {
+            const p = tm.queueAction([groups[i], vars2]).then( (gIssolated) => {
+                for (let v in gIssolated) {
+                    if (issolated[v]) throw ("Variable already issolated");
+                    issolated[v] = gIssolated[v];
+                    constraints[vars[v].cid] = null;
+                }
+                p.fullfilled = true;
+            });
 
-        const p = isolateGroup(groups[i]).then( (gIssolated) => {
+            ops.push(p);
+            await tm.yield();
+            let o=0;
+            for (let j=0; j<ops.length; j++) {
+                if (!ops[j].fullfilled) {
+                    ops[o++] = ops[j];
+                }
+            }
+            ops.length = o;
+        } else {
+            const gIssolated = isolateGroupProcessor(groups[i], vars2);
             for (let v in gIssolated) {
                 if (issolated[v]) throw ("Variable already issolated");
                 issolated[v] = gIssolated[v];
                 constraints[vars[v].cid] = null;
             }
-            p.fullfilled = true;
-        });
-
-        ops.push(p);
-        await tm.yield();
-        let o=0;
-        for (let j=0; j<ops.length; j++) {
-            if (!ops[j].fullfilled) {
-                ops[o++] = ops[j];
-            }
         }
-        ops.length = o;
     }
 
     await Promise.all(ops);
@@ -196,94 +190,13 @@ export default async function optimize(cir, logger) {
         }
         return -1;
     }
-/*
-    function isolateGroup(group) {
-        const mapVar2groupIdx = {};
-        const vars2 = [];
-        for (let i=0; i<group.length; i++) {
-            mapVar2groupIdx[group[i]] = i;
-            vars2[i] = vars[group[i]].lc;
+
+    function cloneLC(lc) {
+        const newLC = {};
+        for (let v in lc) {
+            newLC[v] = lc[v].slice();
         }
-
-        let nGroup = group.length;
-
-        while (nGroup>0) {
-
-            const otherNonZero = new Array(nGroup);
-            for (let i=0; i< nGroup; i++) otherNonZero[i] = 0;
-            for (let i=0; i<nGroup; i++) {
-                for ( let v2 in vars2[i]) {
-                    if (v2 in mapVar2groupIdx) {
-                        otherNonZero[mapVar2groupIdx[v2]]++;
-                    }
-                }
-            }
-
-            const v1Idx  = otherNonZero.reduce(function(lowest, next, index) {
-                return (next < otherNonZero[lowest]) ? index : lowest;
-            }, 0);
-
-            const v1 = group[v1Idx];
-            const v2Idxs = [];
-            for (let j=0; j<nGroup; j++) {
-                if (v1Idx==j) continue;
-                if ( vars2[j][v1] ) v2Idxs.push(j);
-            }
-
-            let lc1 = vars2[v1Idx];
-            if (lc1[v1]) {
-                normalizeLC(lc1, v1);
-                vars2[v1Idx] = lc1;
-
-                for (let i=0; i<v2Idxs.length; i++) {
-                    const v2Idx = v2Idxs[i];
-                    let lc2 = vars2[v2Idx];
-                    lc2 = reduceLC(lc1, lc2, v1);
-                    vars2[v2Idx] = lc2;
-                }
-            } else {
-                delete vars2[v1Idx];
-            }
-
-            const lastv = group[nGroup -1];
-
-            mapVar2groupIdx[lastv] = v1Idx;
-            mapVar2groupIdx[v1] = nGroup-1;
-
-            const tmp = vars2[v1Idx];
-            vars2[v1Idx] = vars2[nGroup -1];
-            vars2[nGroup -1] = tmp;
-
-            group[v1Idx] = lastv;
-            group[nGroup -1] = v1;
-
-            nGroup--;
-        }
-
-        const issolated = {};
-        for (let i=0; i<group.length; i++) {
-            const v = group[i];
-            if (!vars2[i]) continue;
-            const lc = vars2[i].lc;
-            let is = isolateLCn(lc, group[i]);
-            if (is) {
-                is = substituteLC(is, issolated);
-                issolated[v] = is;
-            }
-        }
-
-        return issolated;
-
-    }
-*/
-
-    function isolateGroup(group) {
-        const vars2 = [];
-        for (let i=0; i<group.length; i++) {
-            vars2[i] = vars[group[i]].lc;
-        }
-
-        return tm.queueAction([group, vars2]);
+        return newLC;
     }
 
     function substituteLC(lc, vars) {

@@ -63,6 +63,7 @@ export default async function buildThreadManager(curve, singleThread) {
 
         let concurrency;
         concurrency = os.cpus().length;
+        if (concurrency>64) concurrency = 64;
         tm.concurrency = concurrency;
 
         for (let i = 0; i<concurrency; i++) {
