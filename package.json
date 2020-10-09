@@ -18,11 +18,11 @@
   "dependencies": {
     "@iden3/bigarray": "0.0.2",
     "logplease": "^1.2.15",
-    "r1csfile": "0.0.17",
-    "yargs": "^16.0.3"
+    "r1csfile": "0.0.19",
+    "yargs": "^16.0.3",
+    "ffjavascript": "^0.2.24"
   },
   "devDependencies": {
-    "eslint": "^7.9.0",
-    "ffjavascript": "^0.2.23"
+    "eslint": "^7.9.0"
   }
 }

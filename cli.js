@@ -13,7 +13,7 @@ console.log(argv);
 const logger = Logger.create("snarkJS", {showTimestamp:false});
 
 async function run(r1csNameFrom, r1csNameTo, logger) {
-    const cir = await readR1cs(r1csNameFrom, true, true, logger, "");
+    const cir = await readR1cs(r1csNameFrom, true, true, true, logger, "");
 
     const newCir = await optimizer(cir, logger);
 
