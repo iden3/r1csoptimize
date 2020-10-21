@@ -18,9 +18,9 @@
   "dependencies": {
     "@iden3/bigarray": "0.0.2",
     "logplease": "^1.2.15",
-    "r1csfile": "0.0.24",
+    "r1csfile": "0.0.25",
     "yargs": "^16.0.3",
-    "ffjavascript": "^0.2.29"
+    "ffjavascript": "^0.2.30"
   },
   "devDependencies": {
     "eslint": "^7.9.0"
