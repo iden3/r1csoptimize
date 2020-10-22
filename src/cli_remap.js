@@ -15,7 +15,7 @@ const logger = Logger.create("snarkJS", {showTimestamp:false});
 async function remap(r1csNameFrom, datFrom, datTo, logger) {
     const cir = await readR1cs(r1csNameFrom, false, true, true, logger, "");
 
-    const fdDatFrom = await readExisting(datFrom);
+    const fdDatFrom = await readExisting(datFrom,1<<25, 1<<22);
     const pWit2Sig = await fdDatFrom.readULE64();
 
     const copyBuff = new BigBuffer(pWit2Sig);
@@ -23,7 +23,7 @@ async function remap(r1csNameFrom, datFrom, datTo, logger) {
     await fdDatFrom.readToBuffer(copyBuff, 0, pWit2Sig, 0);
     await fdDatFrom.close();
 
-    const fdDatTo = await createOverride(datTo);
+    const fdDatTo = await createOverride(datTo,1<<25, 1<<22);
 
     await fdDatTo.write(copyBuff);
 
