@@ -3,7 +3,7 @@ import Logger from "logplease";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import optimizer from "./src/optimizer.js";
+import optimizer from "./optimizer.js";
 
 
 const argv = yargs(hideBin(process.argv)).argv;
