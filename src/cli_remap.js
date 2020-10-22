@@ -36,7 +36,7 @@ async function remap(r1csNameFrom, datFrom, datTo, logger) {
 
     await fdDatTo.write(newSig2Wit);
 
-    await fdDatTo.writeULE32(64, cir.nVars);
+    await fdDatTo.writeULE32(cir.nVars, 64);
 
     await fdDatTo.close();
 
