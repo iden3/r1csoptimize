@@ -135,8 +135,8 @@ export default async function optimize(cir, logger) {
         if ((logger)&&(i%1000 == 0)) logger.info(`Substituting constraints: ${i}/${constraints.length}`);
         if (constraints[i]) {
             const c = substituteConstraint(constraints[i], issolated);
-            remapC(c);
-            constraints[o] = c;
+            const remapedC = remapC(c);
+            constraints[o] = remapedC;
             o++;
         }
     }
