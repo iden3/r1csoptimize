@@ -47,7 +47,7 @@ export default async function optimize(cir, logger) {
         for (let k=0; k<subVars.length; k++) {
             if (vars[subVars[k]]) {
                 let g2 = vars[subVars[k]].g;
-                while (g2<0) g2= vars[-g2]-g;
+                while (g2<0) g2= vars[-g2].g;
                 if (g2 != g) {
                     vars[subVars[k]].g = -g;
                 }
