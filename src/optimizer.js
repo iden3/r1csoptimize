@@ -112,7 +112,7 @@ export default async function optimize(cir, logger) {
             }
             ops.length = o;
         } else {
-            const gIssolated = isolateGroupProcessor(groups[i], vars2);
+            const gIssolated = isolateGroupProcessor([groups[i], vars2]);
             for (let v in gIssolated) {
                 if (issolated[v]) throw ("Variable already issolated");
                 issolated[v] = gIssolated[v];
@@ -135,9 +135,11 @@ export default async function optimize(cir, logger) {
         if ((logger)&&(i%1000 == 0)) logger.info(`Substituting constraints: ${i}/${constraints.length}`);
         if (constraints[i]) {
             const c = substituteConstraint(constraints[i], issolated);
-            const remapedC = remapC(c);
-            constraints[o] = remapedC;
-            o++;
+            if (!isZero(c)) {
+                const remapedC = remapC(c);
+                constraints[o] = remapedC;
+                o++;
+            }
         }
     }
     constraints.length = o;
@@ -164,7 +166,7 @@ export default async function optimize(cir, logger) {
     function remapLC(lc) {
         const r = {};
         for (let v in lc) {
-            if (!old2new[v]) {
+            if (typeof(old2new[v]) == "undefined") {
                 old2new[v] = nNew;
                 newMap[nNew] = cir.map[v];
                 nNew ++;
@@ -224,11 +226,75 @@ export default async function optimize(cir, logger) {
     }
 
     function substituteConstraint(c, vars) {
-        return [
+        const res = [
             substituteLC(c[0], vars),
             substituteLC(c[1], vars),
             substituteLC(c[2], vars),
         ];
+        const keysA = Object.keys(res[0]);
+        if ((keysA.length==1)&&(keysA[0]==0)) {
+            for (let v in res[1]) {
+                if (res[2][v]) {
+                    res[2][v] = Fr.sub(res[2][v], Fr.mul(res[0][0], res[1][v]));
+                    if (Fr.isZero(res[2][v])) delete res[2][v];
+                } else {
+                    res[2][v] = Fr.neg(Fr.mul(res[0][0], res[1][v]));
+                    if (Fr.isZero(res[2][v])) delete res[2][v];
+                }
+            }
+            res[0] = {};
+            res[1] = {};
+            return res;
+        }
+        const keysB = Object.keys(res[1]);
+        if ((keysB.length==1)&&(keysB[0]==0)) {
+            for (let v in res[0]) {
+                if (res[2][v]) {
+                    res[2][v] = Fr.sub(res[2][v], Fr.mul(res[1][0], res[0][v]));
+                    if (Fr.isZero(res[2][v])) delete res[2][v];
+                } else {
+                    res[2][v] = Fr.neg(Fr.mul(res[1][0], res[0][v]));
+                    if (Fr.isZero(res[2][v])) delete res[2][v];
+                }
+            }
+            res[0] = {};
+            res[1] = {};
+            return res;
+        }
+        return res;
+    }
+
+    function isZero(c) {
+        let ca, cb, cc;
+        const keysA = Object.keys(c[0]);
+        if (keysA.length==0) {
+            ca = Fr.zero;
+        } else if ((keysA.length==1)&&(keysA[0]==0)) {
+            ca = c[0][0];
+        } else {
+            return false;
+        }
+        const keysB = Object.keys(c[1]);
+        if (keysB.length==0) {
+            cb = Fr.zero;
+        } else if ((keysB.length==1)&&(keysB[0]==0)) {
+            cb = c[1][0];
+        } else {
+            return false;
+        }
+        const keysC = Object.keys(c[2]);
+        if (keysC.length==0) {
+            cc = Fr.zero;
+        } else if ((keysC.length==1)&&(keysC[0]==0)) {
+            cb = c[2][0];
+        } else {
+            return false;
+        }
+
+        if ( !Fr.eq(Fr.mul(ca, cb), cc) ) {
+            throw new Error("Constraint doe not match");
+        }
+        return true;
     }
 
 
